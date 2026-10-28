@@ -1353,7 +1353,7 @@ class TestMiddleware(unittest.IsolatedAsyncioTestCase):
         deep = "x"
         for _ in range(3000):
             deep = [deep]
-        st, *_ = await asgi(self.mw, "POST", "/chat", raw=json.dumps(deep).encode(), headers={"authorization": f"Bearer {self.tok}", "content-type": "application/json"})
+        st, *_ = await asgi(self.mw, "POST", "/chat", raw=b"["*3000+b"1"+b"]"*3000, headers={"authorization": f"Bearer {self.tok}", "content-type": "application/json"})
         self.assertIn(st, (400, 413))
 
     async def test_body_limits_and_content_type(self):
