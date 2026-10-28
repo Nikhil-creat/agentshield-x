@@ -38,7 +38,7 @@ jobs:
       - uses: sigstore/cosign-installer@v3
       - name: Sign the image (keyless)
         run: cosign sign --yes ghcr.io/${{ github.repository }}@${{ steps.img.outputs.digest }}
-      - uses: actions/attest-build-provenance@v1
+      - uses: actions/attest-build-provenance@v4
         with:
           subject-name: ghcr.io/${{ github.repository }}
           subject-digest: ${{ steps.img.outputs.digest }}
