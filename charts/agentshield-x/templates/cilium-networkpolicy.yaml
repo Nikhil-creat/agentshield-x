@@ -1,0 +1,59 @@
+{{- if .Values.cilium.enabled }}
+# 1) Default-deny for every pod in the release namespace (empty selector, empty rule lists).
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata: {name: default-deny-all}
+spec:
+  endpointSelector: {}
+  ingress: [{}]
+  egress: [{}]
+---
+# 2) The guard API: ingress only from in-namespace gateways; egress only to data stores, DNS, OTLP and allow-listed FQDNs.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata: {name: agentshield-api}
+spec:
+  endpointSelector:
+    matchLabels: {{- include "agentshield.selector" . | nindent 6 }}
+  ingress:
+    - fromEndpoints:
+        - matchLabels: {agentshield/role: gateway}      # label your ingress/agent-gateway pods with this
+      toPorts: [{ports: [{port: "8080", protocol: TCP}]}]
+    - fromEndpoints:
+        - matchLabels: {io.kubernetes.pod.namespace: monitoring, app.kubernetes.io/name: prometheus}
+      toPorts:
+        - ports: [{port: "8080", protocol: TCP}]
+          rules: {http: [{method: GET, path: /metrics}]}
+  egress:
+    - toEndpoints:
+        - matchLabels: {k8s:io.kubernetes.pod.namespace: kube-system, k8s-app: kube-dns}
+      toPorts:
+        - ports: [{port: "53", protocol: ANY}]
+          rules: {dns: [{matchPattern: "*"}]}
+    - toEndpoints:
+        - matchLabels: {k8s:io.kubernetes.pod.namespace: {{ .Values.cilium.postgres.namespace }}, app: {{ .Values.cilium.postgres.app }}}
+      toPorts: [{ports: [{port: {{ .Values.cilium.postgres.port | quote }}, protocol: TCP}]}]
+    - toEndpoints:
+        - matchLabels: {k8s:io.kubernetes.pod.namespace: {{ .Values.cilium.redis.namespace }}, app: {{ .Values.cilium.redis.app }}}
+      toPorts: [{ports: [{port: {{ .Values.cilium.redis.port | quote }}, protocol: TCP}]}]
+    - toEndpoints:
+        - matchLabels: {k8s:io.kubernetes.pod.namespace: {{ .Values.cilium.otlp.namespace }}, app: {{ .Values.cilium.otlp.app }}}
+      toPorts: [{ports: [{port: {{ .Values.cilium.otlp.port | quote }}, protocol: TCP}]}]
+    {{- if .Values.cilium.egressFQDNs }}
+    - toFQDNs:
+        {{- range .Values.cilium.egressFQDNs }}
+        - matchName: {{ . | quote }}
+        {{- end }}
+      toPorts: [{ports: [{port: "443", protocol: TCP}]}]
+    {{- end }}
+---
+# 3) Sandbox pods: total network isolation. No ingress, no egress (not even DNS). Enforced in the datapath by eBPF.
+apiVersion: cilium.io/v2
+kind: CiliumClusterwideNetworkPolicy
+metadata: {name: agentshield-sandbox-air-gap}
+spec:
+  endpointSelector:
+    matchLabels: {agentshield/role: sandbox}
+  ingress: [{}]
+  egress: [{}]
+{{- end }}

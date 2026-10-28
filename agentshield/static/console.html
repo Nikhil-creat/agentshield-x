@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>AgentShield-X console</title>
+<style>
+:root{
+  --fog:#E8EDF0; --paper:#F6F8F9; --ink:#12202B; --ink-2:#47596A; --rule:#B9C4CC;
+  --seal:#0E6B63; --brick:#A8321F; --amber:#8F5A06; --link:#3B5668; --focus:#0B57D0;
+  --serif:Charter,"Iowan Old Style","Palatino Linotype",Georgia,serif;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){--fog:#0F1A22;--paper:#16232D;--ink:#E4ECF1;--ink-2:#9FB1BF;--rule:#2E4150;--seal:#4FC3B6;--brick:#FF8C78;--amber:#E6B04F;--link:#8FB0C6;--focus:#8AB4F8}
+}
+*{box-sizing:border-box}
+html{background:var(--fog)}
+body{margin:0;background:var(--fog);color:var(--ink);font:16px/1.5 var(--sans);-webkit-text-size-adjust:100%}
+a,button,input,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px;border-radius:2px}
+.wrap{max-width:1180px;margin:0 auto;padding:0 16px}
+header{border-bottom:1px solid var(--rule);background:var(--paper)}
+header .wrap{display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding-top:12px;padding-bottom:12px}
+h1{margin:0;font:600 1.05rem/1.2 var(--sans);letter-spacing:.01em}
+form.auth{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+label{color:var(--ink-2);font-size:.9rem}
+input[type=password],textarea{background:var(--fog);border:1px solid var(--rule);border-radius:4px;padding:8px 10px;color:var(--ink)}
+input[type=password]{width:min(22rem,62vw)}
+button{background:var(--ink);color:var(--paper);border:0;border-radius:4px;padding:8px 14px;cursor:pointer;font-weight:600}
+button:disabled{opacity:.5;cursor:default}
+button.quiet{background:transparent;color:var(--ink);border:1px solid var(--rule)}
+
+.state{padding:28px 16px 20px;border-bottom:1px solid var(--rule)}
+.state h2{margin:0;font:400 clamp(1.6rem,4.2vw,2.6rem)/1.15 var(--serif);max-width:26ch;text-wrap:balance}
+.state h2.bad{color:var(--brick)}
+.state p{margin:8px 0 0;color:var(--ink-2);max-width:60ch}
+.root{font-family:var(--mono);font-size:.85rem;word-break:break-all}
+
+main.wrap{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:40px;padding-top:24px;padding-bottom:64px}
+@media (max-width:860px){main.wrap{grid-template-columns:1fr;gap:28px}}
+h3{margin:0 0 10px;font:600 1rem/1.3 var(--sans)}
+section+section{margin-top:32px}
+.hint{color:var(--ink-2);font-size:.92rem;margin:0 0 12px;max-width:62ch}
+
+/* the chain: each ledger entry is a link; the rail is prev -> leaf continuity */
+ol.chain{list-style:none;margin:0;padding:0}
+ol.chain li{position:relative;padding:0 0 18px 34px;min-height:44px}
+ol.chain li::before{content:"";position:absolute;left:9px;top:20px;bottom:-2px;width:2px;background:var(--seal)}
+ol.chain li:last-child::before{display:none}
+ol.chain li.broken::before{background:repeating-linear-gradient(to bottom,var(--brick) 0 4px,transparent 4px 8px)}
+.node{position:absolute;left:0;top:2px;width:20px;height:20px;display:grid;place-items:center;color:var(--ink)}
+.node svg{width:20px;height:20px;display:block}
+.row1{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.kind{font-weight:600}
+.verdict{font-size:.9rem;font-weight:600}
+.v-block{color:var(--brick)} .v-sanitized,.v-heal{color:var(--amber)} .v-allow{color:var(--seal)}
+.meta{color:var(--ink-2);font-size:.9rem}
+.hash{font-family:var(--mono);font-size:.82rem;color:var(--link)}
+.empty{color:var(--ink-2);border:1px dashed var(--rule);padding:14px;border-radius:4px}
+
+.bar{display:flex;height:14px;border-radius:3px;overflow:hidden;background:var(--rule);margin:6px 0 8px}
+.bar span{display:block;min-width:2px}
+.legend{display:flex;gap:16px;flex-wrap:wrap;margin:0;padding:0;list-style:none;font-size:.92rem}
+.legend b{font-variant-numeric:tabular-nums}
+.sw{display:inline-block;width:.8em;height:.8em;margin-right:6px;border-radius:2px;vertical-align:-1px}
+ul.rank{list-style:none;margin:0;padding:0}
+ul.rank li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 12px;padding:6px 0;border-bottom:1px solid var(--rule)}
+ul.rank li i{grid-column:1 / -1;display:block;height:3px;background:var(--link);opacity:.55}
+dl.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 16px;margin:0}
+dl.kv dt{color:var(--ink-2)} dl.kv dd{margin:0;font-variant-numeric:tabular-nums}
+
+textarea{width:100%;min-height:96px;resize:vertical}
+.out{margin-top:12px;border-top:1px solid var(--rule);padding-top:10px}
+.out pre{white-space:pre-wrap;word-break:break-word;margin:6px 0;background:var(--paper);border:1px solid var(--rule);border-radius:4px;padding:10px;font:.88rem/1.45 var(--mono)}
+.err{color:var(--brick);font-weight:600}
+.sr{position:absolute;left:-9999px}
+@media (prefers-reduced-motion:no-preference){ .state h2{animation:settle .5s ease-out both} @keyframes settle{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}} }
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <h1>AgentShield-X console</h1>
+  <form class="auth" id="auth" autocomplete="off">
+    <label for="tok">Auditor token</label>
+    <input id="tok" type="password" spellcheck="false" aria-describedby="authmsg">
+    <button type="submit">Connect</button>
+    <span id="authmsg" class="meta" role="status"></span>
+  </form>
+</div></header>
+
+<div class="wrap state" id="state">
+  <h2 id="headline">Enter an auditor token to read the ledger.</h2>
+  <p id="sub">The token stays in this tab's memory and is never written to storage.</p>
+</div>
+
+<main class="wrap">
+  <div>
+    <section aria-labelledby="chain-h">
+      <h3 id="chain-h">Recent decisions</h3>
+      <p class="hint">Each link must point at the one before it. A dashed red rail means the chain does not connect there.</p>
+      <ol class="chain" id="chain"><li class="empty">Nothing loaded yet.</li></ol>
+    </section>
+  </div>
+
+  <div>
+    <section aria-labelledby="v-h">
+      <h3 id="v-h">What the guard decided</h3>
+      <div class="bar" id="bar" role="img" aria-label="Share of allowed, healed and blocked requests"></div>
+      <ul class="legend" id="legend"></ul>
+    </section>
+    <section aria-labelledby="f-h">
+      <h3 id="f-h">What it found</h3>
+      <ul class="rank" id="finds"><li class="meta">No findings yet.</li></ul>
+    </section>
+    <section aria-labelledby="o-h">
+      <h3 id="o-h">People and sandbox</h3>
+      <dl class="kv" id="ops"></dl>
+    </section>
+    <section aria-labelledby="t-h">
+      <h3 id="t-h">Try a scan</h3>
+      <p class="hint">Sends the text to <code>/v1/scan/text</code> with your token. Nothing is stored except a digest in the ledger.</p>
+      <form id="scan">
+        <label for="txt" class="sr">Text to scan</label>
+        <textarea id="txt" placeholder="Paste a prompt, document excerpt or tool output"></textarea>
+        <p><button type="submit">Scan text</button></p>
+      </form>
+      <div class="out" id="out" aria-live="polite"></div>
+    </section>
+  </div>
+</main>
+
+<script>
+(function(){
+  "use strict";
+  var token = "", timer = null;
+  var $ = function(id){ return document.getElementById(id); };
+  var NS = "http://www.w3.org/2000/svg";
+
+  function el(tag, cls, text){ var n = document.createElement(tag); if(cls) n.className = cls; if(text !== undefined) n.textContent = text; return n; }
+  function clear(n){ while(n.firstChild) n.removeChild(n.firstChild); }
+  function fmtTime(ts){ var d = new Date(ts*1000); return isNaN(d) ? "" : d.toLocaleString(undefined,{hour12:false}); }
+  function short(h){ return h ? h.slice(0,8) + "…" + h.slice(-4) : ""; }
+
+  function api(path, opts){
+    opts = opts || {};
+    opts.headers = Object.assign({"Authorization":"Bearer "+token}, opts.headers||{});
+    return fetch(path, opts).then(function(r){
+      if(r.status === 401) throw new Error("The token was rejected. Paste a valid auditor token.");
+      if(r.status === 403) throw new Error("This token lacks the auditor role.");
+      if(!r.ok) throw new Error("The server answered " + r.status + ".");
+      return r.json();
+    });
+  }
+
+  function glyph(kind){ // shape carries meaning as well as colour: ring = allowed, diamond = healed, square = blocked
+    var s = document.createElementNS(NS,"svg"); s.setAttribute("viewBox","0 0 20 20"); s.setAttribute("aria-hidden","true");
+    var p;
+    if(kind === "block"){ p = document.createElementNS(NS,"rect"); p.setAttribute("x","4"); p.setAttribute("y","4"); p.setAttribute("width","12"); p.setAttribute("height","12"); p.setAttribute("fill","var(--brick)"); }
+    else if(kind === "sanitized" || kind === "heal"){ p = document.createElementNS(NS,"path"); p.setAttribute("d","M10 2 L18 10 L10 18 L2 10 Z"); p.setAttribute("fill","var(--amber)"); }
+    else { p = document.createElementNS(NS,"circle"); p.setAttribute("cx","10"); p.setAttribute("cy","10"); p.setAttribute("r","6"); p.setAttribute("fill","var(--paper)"); p.setAttribute("stroke","var(--seal)"); p.setAttribute("stroke-width","3"); }
+    s.appendChild(p); return s;
+  }
+  function verdictOf(e){ var v = (e.meta && (e.meta.verdict || e.meta.action || e.meta.status)) || ""; return String(v); }
+  function label(v){ return v === "block" ? "Blocked" : v === "sanitized" ? "Healed" : v === "allow" ? "Allowed" : v === "quarantined" ? "Quarantined" : v ? v : ""; }
+
+  function renderChain(entries){
+    var ol = $("chain"); clear(ol);
+    if(!entries.length){ ol.appendChild(el("li","empty","The ledger is empty. Decisions appear here as soon as the guard handles a request.")); return 0; }
+    var broken = 0;
+    entries.forEach(function(e, i){
+      var older = entries[i+1];                      // list is newest first
+      var linked = !older || e.prev === older.leaf;  // this entry's prev must equal the older entry's leaf
+      if(!linked) broken++;
+      var li = el("li", linked ? "" : "broken");
+      var node = el("span","node"); node.appendChild(glyph(verdictOf(e))); li.appendChild(node);
+      var r1 = el("div","row1");
+      r1.appendChild(el("span","kind", e.kind));
+      var v = verdictOf(e); if(v){ r1.appendChild(el("span","verdict v-"+(v==="heal"?"sanitized":v), label(v))); }
+      r1.appendChild(el("span","hash","#"+e.seq+" · "+short(e.leaf)));
+      li.appendChild(r1);
+      li.appendChild(el("div","meta", e.actor + " · " + fmtTime(e.ts) + (linked ? "" : " · this link does not connect to the entry before it")));
+      ol.appendChild(li);
+    });
+    return broken;
+  }
+
+  function renderStats(s, broken){
+    var led = s.ledger, h = $("headline"), sub = $("sub");
+    var ok = led.intact && broken === 0;
+    h.className = ok ? "" : "bad";
+    h.textContent = ok ? "The audit chain is intact across " + led.entries.toLocaleString() + " entries." : "The audit chain failed verification.";
+    clear(sub);
+    sub.appendChild(document.createTextNode(ok ? "Every entry hashes to the one before it. " : (led.intact ? "A link in the recent entries does not connect. " : "Server check: " + (led.detail || "failed") + ". ")));
+    sub.appendChild(document.createTextNode("Checked just now by the server."));
+
+    var t = s.verdicts || {}, a = t.allow||0, healed = t.sanitized||0, b = t.block||0, sum = a+healed+b;
+    var bar = $("bar"), leg = $("legend"); clear(bar); clear(leg);
+    [["Allowed",a,"var(--seal)"],["Healed",healed,"var(--amber)"],["Blocked",b,"var(--brick)"]].forEach(function(x){
+      if(sum){ var sp = el("span"); sp.style.width = (100*x[1]/sum)+"%"; sp.style.background = x[2]; bar.appendChild(sp); }
+      var li = el("li"); var sw = el("span","sw"); sw.style.background = x[2]; li.appendChild(sw); li.appendChild(document.createTextNode(x[0]+" ")); li.appendChild(el("b",null,String(x[1]))); leg.appendChild(li);
+    });
+    bar.setAttribute("aria-label", "Allowed "+a+", healed "+healed+", blocked "+b);
+
+    var f = $("finds"); clear(f);
+    if(!(s.findings||[]).length){ f.appendChild(el("li","meta","No findings yet.")); }
+    var max = Math.max.apply(null, (s.findings||[]).map(function(x){return x.count;}).concat([1]));
+    (s.findings||[]).forEach(function(x){
+      var li = el("li"); li.appendChild(el("span",null,x.category.replace(/_/g," "))); li.appendChild(el("b",null,String(x.count)));
+      var i = el("i"); i.style.width = (100*x.count/max)+"%"; li.appendChild(i); f.appendChild(li);
+    });
+
+    var ops = $("ops"); clear(ops);
+    function kv(k,v){ ops.appendChild(el("dt",null,k)); ops.appendChild(el("dd",null,String(v))); }
+    kv("Waiting for a person", (s.hitl||{}).pending||0);
+    var oc = (s.hitl||{}).outcomes||{}; Object.keys(oc).sort().forEach(function(k){ kv("Approvals "+k, oc[k]); });
+    var sb = s.sandbox||{}; Object.keys(sb).sort().forEach(function(k){ kv("Sandbox runs "+k, sb[k]); });
+    var rt = s.redteam||{}; Object.keys(rt).sort().forEach(function(k){ kv("Red-team detection ("+k+")", Math.round(rt[k]*1000)/10+"%"); });
+  }
+
+  function refresh(){
+    return Promise.all([api("/v1/stats"), api("/v1/ledger/recent?n=40")]).then(function(r){
+      var broken = renderChain(r[1]); renderStats(r[0], broken); $("authmsg").textContent = "Connected.";
+    }).catch(function(e){ $("authmsg").textContent = ""; var h = $("headline"); h.className = "bad"; h.textContent = e.message; clear($("sub")); stop(); });
+  }
+  function stop(){ if(timer){ clearInterval(timer); timer = null; } }
+
+  $("auth").addEventListener("submit", function(ev){
+    ev.preventDefault(); token = $("tok").value.trim(); if(!token) return;
+    $("tok").value = ""; $("authmsg").textContent = "Connecting…"; stop();
+    refresh().then(function(){ if(token && !timer) timer = setInterval(refresh, 10000); });
+  });
+
+  $("scan").addEventListener("submit", function(ev){
+    ev.preventDefault();
+    var out = $("out"), text = $("txt").value; clear(out);
+    if(!token){ out.appendChild(el("p","err","Connect with a token first.")); return; }
+    if(!text.trim()){ out.appendChild(el("p","err","Enter some text to scan.")); return; }
+    api("/v1/scan/text", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({text:text, trust:1})}).then(function(r){
+      out.appendChild(el("p", "verdict v-"+(r.verdict==="sanitized"?"sanitized":r.verdict), "Verdict: " + (label(r.verdict)||r.verdict)));
+      out.appendChild(el("p","meta","Text that is safe to forward:")); out.appendChild(el("pre",null,r.text));
+      var fs = r.findings||[];
+      if(fs.length){ out.appendChild(el("p","meta","Findings:")); var ul = el("ul"); fs.slice(0,8).forEach(function(f){ ul.appendChild(el("li",null,f.rule+" ("+f.category+")")); }); out.appendChild(ul); }
+      refresh();
+    }).catch(function(e){ out.appendChild(el("p","err",e.message)); });
+  });
+})();
+</script>
+</body>
+</html>

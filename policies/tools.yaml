@@ -1,0 +1,153 @@
+# AgentShield-X tool registry (policy-as-code). Deny-by-default: a tool not listed here cannot be called.
+# Reviewed like code: unknown keys, bad effects and invalid regexes fail loading (see agentshield/policy_loader.py).
+version: 1
+tools:
+- name: db_query
+  description: Read-only SQL query
+  effect: read
+  required_scope: tools.db.read
+  base_risk: 0.1
+  schema:
+    type: object
+    required:
+    - sql
+    properties:
+      sql:
+        type: string
+        maxLength: 2000
+        pattern: (?is)^\s*select\b[^;]*;?\s*$
+- name: db_write
+  description: Insert/update a record
+  effect: write
+  required_scope: tools.db.write
+  base_risk: 0.3
+  schema:
+    type: object
+    required:
+    - table
+    - values
+    properties:
+      table:
+        type: string
+        enum:
+        - notes
+        - tickets
+        - tasks
+      values:
+        type: object
+        additionalProperties: true
+      dry_run:
+        type: boolean
+  allowed_roles:
+  - admin
+  - editor
+  requires_approval: true
+  dry_run_param: dry_run
+- name: delete_record
+  description: Delete a record
+  effect: delete
+  required_scope: tools.db.delete
+  base_risk: 0.3
+  schema:
+    type: object
+    required:
+    - table
+    - id
+    properties:
+      table:
+        type: string
+        enum:
+        - notes
+        - tickets
+        - tasks
+      id:
+        type: integer
+        minimum: 1
+  allowed_roles:
+  - admin
+- name: run_python
+  description: Run Python in the ephemeral sandbox
+  effect: exec
+  required_scope: tools.exec.python
+  base_risk: 0.2
+  schema:
+    type: object
+    required:
+    - code
+    properties:
+      code:
+        type: string
+        maxLength: 20000
+  code_param: code
+- name: search_docs
+  description: Search internal documents
+  effect: read
+  required_scope: tools.search
+  base_risk: 0.05
+  schema:
+    type: object
+    required:
+    - query
+    properties:
+      query:
+        type: string
+        maxLength: 500
+      limit:
+        type: integer
+        minimum: 1
+        maximum: 50
+  clamps:
+    limit:
+    - 1
+    - 50
+- name: send_email
+  description: Send an e-mail
+  effect: external_comms
+  required_scope: tools.email.send
+  base_risk: 0.2
+  schema:
+    type: object
+    required:
+    - to
+    - subject
+    - body
+    properties:
+      to:
+        type: string
+        maxLength: 254
+      subject:
+        type: string
+        maxLength: 200
+      body:
+        type: string
+        maxLength: 10000
+  url_params:
+  - to
+  egress_allowlist:
+  - corp.example
+  - example.com
+- name: transfer_funds
+  description: Move money between accounts
+  effect: financial
+  required_scope: tools.finance.transfer
+  base_risk: 0.4
+  schema:
+    type: object
+    required:
+    - from_account
+    - to_account
+    - amount
+    properties:
+      from_account:
+        type: string
+        pattern: ^[A-Z0-9-]{6,34}$
+      to_account:
+        type: string
+        pattern: ^[A-Z0-9-]{6,34}$
+      amount:
+        type: number
+        minimum: 0.01
+        maximum: 1000000
+  allowed_roles:
+  - admin
+  - finance

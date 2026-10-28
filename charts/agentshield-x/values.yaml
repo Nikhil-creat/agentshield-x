@@ -1,0 +1,47 @@
+image:
+  repository: agentshield/guard-api
+  tag: "1"
+  pullPolicy: IfNotPresent
+
+replicaCount: 2
+
+# All secrets are injected from HashiCorp Vault (agent injector) or an existing Secret - never from values.
+existingSecret: agentshield-secrets    # keys: SHIELD_TOKEN_KEY, SHIELD_APPROVAL_KEY, SHIELD_DATABASE_URL, SHIELD_REDIS_URL
+vault:
+  enabled: false
+  role: agentshield
+  secretPath: secret/data/agentshield/api   # rendered to env via the agent injector template
+
+settings:                      # become SHIELD_* env vars (see agentshield/config.py)
+  REQUIRE_OCR: "true"
+  REQUIRE_CNN: "false"          # set "true" once models/visual_guard.onnx is mounted
+  SANDBOX_BACKEND: kubernetes
+  SANDBOX_NAMESPACE: agentshield-sandbox
+  SANDBOX_RUNTIME: gvisor       # RuntimeClass name (gVisor/runsc); see sandbox.* below
+  RATE_LIMIT_PER_MIN: "120"
+
+service:
+  port: 8080
+
+sandbox:
+  # Sandboxed execution in Kubernetes uses short-lived pods under a gVisor RuntimeClass (no DinD / no privileged).
+  runtimeClassName: gvisor
+  createRuntimeClass: false     # true only if your cluster has runsc installed and no RuntimeClass named "gvisor"
+  namespace: agentshield-sandbox
+
+cilium:
+  enabled: true
+  # FQDNs the API may reach for HITL webhooks. Everything else egress-wise is denied.
+  egressFQDNs: ["hooks.slack.com"]
+  postgres: {namespace: data, app: postgres, port: 5432}
+  redis:    {namespace: data, app: redis,    port: 6379}
+  otlp:     {namespace: observability, app: otel-collector, port: 4317}
+
+tetragon:
+  enabled: true                 # requires the Tetragon CRDs (TracingPolicyNamespaced)
+
+resources:
+  requests: {cpu: 500m, memory: 512Mi}
+  limits:   {cpu: "2",   memory: 2Gi}
+
+podSecurityContext: {runAsNonRoot: true, runAsUser: 10001, runAsGroup: 10001, fsGroup: 10001, seccompProfile: {type: RuntimeDefault}}

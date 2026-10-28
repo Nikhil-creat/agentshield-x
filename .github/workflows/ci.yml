@@ -1,0 +1,81 @@
+name: CI
+on:
+  push: { branches: [main] }
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+      - name: Install
+        run: |
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends tesseract-ocr fonts-dejavu-core
+          python -m pip install -U pip
+          pip install -e ".[dev,api,vision]"
+      - name: Policy files are valid
+        run: python -m agentshield policy-validate policies
+      - name: Unit + integration tests (blocking)
+        run: PYTHONPATH=. python -W ignore -m unittest tests.test_security_pipeline tests.test_extensions
+      - name: Red-team gate (>=95% detection, <=5% false positives)
+        run: PYTHONPATH=. python -W ignore -m agentshield redteam
+      - name: Paraphrase benchmark (informational)
+        continue-on-error: true
+        run: PYTHONPATH=. python evals/paraphrase_eval.py
+
+  lint:
+    runs-on: ubuntu-latest
+    continue-on-error: true      # advisory until the codebase is ruff/mypy clean; flip to blocking when green
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12", cache: pip }
+      - run: pip install -e ".[dev,api]"
+      - run: ruff check agentshield tests evals
+      - run: mypy agentshield
+
+  policy-as-code:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: open-policy-agent/setup-opa@v2
+        with: { version: latest }
+      - name: Rego syntax + unit tests
+        run: |
+          opa check --strict policies/rego
+          opa test policies/rego -v
+
+  site:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12", cache: pip }
+      - run: pip install -e ".[docs]" && python scripts/build_site.py
+
+  deploy-manifests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+      - name: Helm lint and render
+        run: |
+          helm lint charts/agentshield-x
+          helm template agentshield charts/agentshield-x > /tmp/rendered.yaml
+      - name: Compose file is valid
+        run: |
+          cp .env.example .env
+          docker compose config --quiet

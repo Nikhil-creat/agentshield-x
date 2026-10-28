@@ -1,0 +1,11 @@
+name: Feature request
+description: Propose a capability or integration
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes: { label: Problem to solve }
+    validations: { required: true }
+  - type: textarea
+    id: idea
+    attributes: { label: Proposed approach, description: "How should it fail? (deny-by-default is required)" }

@@ -1,0 +1,18 @@
+name: Bug report
+description: Something behaves differently from the docs
+labels: [bug]
+body:
+  - type: markdown
+    attributes: { value: "Detection bypasses and security bugs go through the private advisory link, not here." }
+  - type: textarea
+    id: what
+    attributes: { label: What happened, description: Include expected vs actual behaviour }
+    validations: { required: true }
+  - type: textarea
+    id: repro
+    attributes: { label: Minimal reproduction, render: python }
+    validations: { required: true }
+  - type: input
+    id: version
+    attributes: { label: Version / commit }
+    validations: { required: true }

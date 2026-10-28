@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "agentshield.name" . }}
+  labels: {{- include "agentshield.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels: {{- include "agentshield.selector" . | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "agentshield.selector" . | nindent 8 }}
+      annotations:
+        {{- if .Values.vault.enabled }}
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/role: {{ .Values.vault.role | quote }}
+        vault.hashicorp.com/agent-inject-secret-env: {{ .Values.vault.secretPath | quote }}
+        {{- end }}
+    spec:
+      serviceAccountName: agentshield-api
+      automountServiceAccountToken: true   # required by kubectl for the sandbox backend; RBAC is namespace-scoped (sandbox-rbac.yaml)
+      securityContext: {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: api
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports: [{name: http, containerPort: 8080}]
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: ["ALL"]}
+          envFrom:
+            - secretRef: {name: {{ .Values.existingSecret }}}
+          env:
+            {{- range $k, $v := .Values.settings }}
+            - {name: SHIELD_{{ $k }}, value: {{ $v | quote }}}
+            {{- end }}
+          readinessProbe: {httpGet: {path: /healthz, port: http}, periodSeconds: 10}
+          livenessProbe:  {httpGet: {path: /healthz, port: http}, periodSeconds: 20, failureThreshold: 3}
+          resources: {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - {name: tmp, mountPath: /tmp}
+            - {name: audit, mountPath: /var/lib/agentshield}
+      volumes:
+        - {name: tmp, emptyDir: {medium: Memory, sizeLimit: 64Mi}}
+        - {name: audit, emptyDir: {sizeLimit: 512Mi}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "agentshield.name" . }}
+  labels: {{- include "agentshield.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector: {{- include "agentshield.selector" . | nindent 4 }}
+  ports: [{name: http, port: {{ .Values.service.port }}, targetPort: http}]
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata: {name: {{ include "agentshield.name" . }}}
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels: {{- include "agentshield.selector" . | nindent 6 }}

@@ -1,0 +1,25 @@
+# syntax=docker/dockerfile:1.7
+FROM python:3.12-slim AS base
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
+
+# docker CLI only (talks to dind over TLS); tesseract for OCR.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates curl gnupg tesseract-ocr libglib2.0-0 \
+ && install -m 0755 -d /etc/apt/keyrings \
+ && curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc \
+ && echo "deb [signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian $(. /etc/os-release && echo $VERSION_CODENAME) stable" > /etc/apt/sources.list.d/docker.list \
+ && apt-get update && apt-get install -y --no-install-recommends docker-ce-cli \
+ && apt-get purge -y curl gnupg && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+COPY agentshield ./agentshield
+COPY policies ./policies
+ENV SHIELD_POLICY_DIR=/app/policies
+RUN useradd --uid 10001 --no-create-home --shell /usr/sbin/nologin shield \
+ && mkdir -p /var/lib/agentshield /models && chown shield /var/lib/agentshield
+USER 10001:10001
+EXPOSE 8080
+CMD ["uvicorn", "agentshield.app:app", "--host", "0.0.0.0", "--port", "8080", "--no-server-header", "--proxy-headers", "--forwarded-allow-ips", "127.0.0.1"]

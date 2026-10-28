@@ -1,0 +1,161 @@
+# AgentShield-X reference stack: guard API + Redis + Postgres(RLS audit) + Docker-in-Docker sandbox runner.
+#
+#   cp .env.example .env     # then replace every CHANGE_ME (use `openssl rand -hex 32`)
+#   docker compose up --build
+#
+# Network topology (zero-trust, deny-by-default):
+#   edge     : only the guard API publishes a port (bound to localhost by default).
+#   data     : internal (no route out)  - app <-> redis, app <-> postgres.
+#   sandbox  : internal (no route out)  - app <-> dind (TLS). Sandboxes themselves run with --network none.
+#   egress   : the ONLY network with internet access; attached to the egress proxy (and the app, for
+#              allow-listed webhook delivery to Slack/Teams).
+#
+# KNOWN TRADE-OFF: docker:dind requires `privileged: true`. That is contained to the dind service, which
+# sits on an internal network and has no published ports; sandboxes inside it are unprivileged. For stronger
+# isolation use gVisor (set SHIELD_SANDBOX_RUNTIME=runsc and install runsc in dind) or the Kubernetes/Helm
+# deployment with a gVisor RuntimeClass instead of DinD.
+
+name: agentshield
+
+x-hardened: &hardened
+  security_opt: ["no-new-privileges:true"]
+  cap_drop: ["ALL"]
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options: {max-size: "10m", max-file: "5"}
+
+services:
+  guard-api:
+    <<: *hardened
+    build: {context: ., dockerfile: deploy/Dockerfile.api}
+    image: agentshield/guard-api:1
+    read_only: true
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=64m"]
+    user: "10001:10001"
+    ports: ["127.0.0.1:${SHIELD_PORT:-8080}:8080"]
+    environment:
+      SHIELD_TOKEN_KEY: ${SHIELD_TOKEN_KEY:?set SHIELD_TOKEN_KEY (openssl rand -hex 32)}
+      SHIELD_REDIS_URL: redis://:${REDIS_PASSWORD:?set REDIS_PASSWORD}@redis:6379/0
+      SHIELD_DATABASE_URL: postgresql://shield_writer:${POSTGRES_WRITER_PASSWORD:?set POSTGRES_WRITER_PASSWORD}@postgres:5432/agentshield
+      SHIELD_AUDIT_PATH: /var/lib/agentshield/audit.jsonl
+      SHIELD_SANDBOX_IMAGE: agentshield/sandbox-python:1
+      SHIELD_SANDBOX_RUNTIME: ${SHIELD_SANDBOX_RUNTIME:-}
+      SHIELD_REQUIRE_OCR: "true"
+      SHIELD_HITL_WEBHOOK_URL: ${SHIELD_HITL_WEBHOOK_URL:-}
+      SHIELD_HITL_CALLBACK_BASE: ${SHIELD_HITL_CALLBACK_BASE:-http://localhost:8080}
+      DOCKER_HOST: tcp://dind:2376
+      DOCKER_TLS_VERIFY: "1"
+      DOCKER_CERT_PATH: /certs/client
+    volumes:
+      - dind-client-certs:/certs/client:ro
+      - audit-data:/var/lib/agentshield
+    depends_on:
+      redis: {condition: service_healthy}
+      postgres: {condition: service_healthy}
+      sandbox-loader: {condition: service_completed_successfully}
+    networks: [edge, data, sandbox, egress]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=2).status==200 else 1)"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+    deploy:
+      resources: {limits: {cpus: "2.0", memory: 2g}}
+
+  redis:
+    <<: *hardened
+    image: redis:7.4-alpine
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:?set REDIS_PASSWORD}", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "noeviction"]
+    read_only: true
+    tmpfs: ["/tmp"]
+    user: "999:1000"
+    cap_add: [] # redis needs none
+    volumes: [redis-data:/data]
+    networks: [data]
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping | grep -q PONG"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    environment: {REDIS_PASSWORD: "${REDIS_PASSWORD}"}
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+    environment:
+      POSTGRES_DB: agentshield
+      POSTGRES_USER: shield_owner
+      POSTGRES_PASSWORD: ${POSTGRES_OWNER_PASSWORD:?set POSTGRES_OWNER_PASSWORD}
+      POSTGRES_WRITER_PASSWORD: ${POSTGRES_WRITER_PASSWORD}
+      POSTGRES_AUDITOR_PASSWORD: ${POSTGRES_AUDITOR_PASSWORD:?set POSTGRES_AUDITOR_PASSWORD}
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+      - ./db/init.sh:/docker-entrypoint-initdb.d/10-init.sh:ro
+      - ./db/init.sql:/schema/init.sql:ro
+    networks: [data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shield_owner -d agentshield"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  dind:
+    image: docker:27-dind
+    restart: unless-stopped
+    privileged: true # required by dind; see header. Internal network only, no published ports.
+    environment:
+      DOCKER_TLS_CERTDIR: /certs
+    command: ["--storage-driver=overlay2", "--userland-proxy=false", "--icc=false", "--log-level=warn"]
+    volumes:
+      - dind-certs:/certs
+      - dind-client-certs:/certs/client
+      - dind-data:/var/lib/docker
+    networks: [sandbox]
+    healthcheck:
+      test: ["CMD", "docker", "--host=tcp://127.0.0.1:2376", "--tlsverify", "--tlscacert=/certs/server/ca.pem", "--tlscert=/certs/server/cert.pem", "--tlskey=/certs/server/key.pem", "info"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+
+  # One-shot job: builds the hardened sandbox image *inside* dind (sandboxes run with --pull never).
+  sandbox-loader:
+    image: docker:27-cli
+    restart: "no"
+    environment:
+      DOCKER_HOST: tcp://dind:2376
+      DOCKER_TLS_VERIFY: "1"
+      DOCKER_CERT_PATH: /certs/client
+    volumes:
+      - dind-client-certs:/certs/client:ro
+      - ./deploy/sandbox:/ctx:ro
+    command: ["docker", "build", "-t", "agentshield/sandbox-python:1", "/ctx"]
+    depends_on:
+      dind: {condition: service_healthy}
+    networks: [sandbox]
+
+  # Optional allow-listing egress proxy for sandboxes that are explicitly granted NetworkMode.PROXIED.
+  # Disabled unless you run:  docker compose --profile egress up
+  egress-proxy:
+    profiles: ["egress"]
+    <<: *hardened
+    image: ubuntu/squid:6.6-24.04_beta
+    cap_add: [SETUID, SETGID, CHOWN, DAC_OVERRIDE]   # squid drops to the proxy user; untested here (profile is optional)
+    volumes: ["./deploy/squid.conf:/etc/squid/squid.conf:ro", "./deploy/allowed_domains.txt:/etc/squid/allowed_domains.txt:ro"]
+    networks: [sandbox, egress]
+
+networks:
+  edge: {driver: bridge}
+  data: {driver: bridge, internal: true}
+  sandbox: {driver: bridge, internal: true}
+  egress: {driver: bridge}
+
+volumes:
+  redis-data:
+  pg-data:
+  dind-certs:
+  dind-client-certs:
+  dind-data:
+  audit-data:

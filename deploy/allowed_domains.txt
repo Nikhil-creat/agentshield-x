@@ -1,0 +1,1 @@
+# One domain per line (e.g. ".pypi.org"). Empty = sandboxes can reach nothing, even in PROXIED mode.

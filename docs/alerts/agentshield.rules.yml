@@ -1,0 +1,33 @@
+groups:
+  - name: agentshield
+    rules:
+      - alert: AgentShieldBlockRateHigh
+        expr: sum(rate(shield_requests_total{verdict="block"}[5m])) / clamp_min(sum(rate(shield_requests_total[5m])), 1e-9) > 0.2
+        for: 10m
+        labels: { severity: warning }
+        annotations: { summary: "More than 20% of guarded requests are being blocked", runbook: "docs/RUNBOOK.md#spike-in-blocks--findings" }
+      - alert: AgentShieldRedTeamRegression
+        expr: min(shield_redteam_detection_rate) < 0.95
+        for: 5m
+        labels: { severity: critical }
+        annotations: { summary: "Red-team detection fell below 95%", runbook: "docs/RUNBOOK.md#red-team-detection-drops" }
+      - alert: AgentShieldApprovalBacklog
+        expr: shield_hitl_pending > 10
+        for: 15m
+        labels: { severity: warning }
+        annotations: { summary: "Human approvals are backing up (timeouts deny)", runbook: "docs/RUNBOOK.md#approvals-piling-up" }
+      - alert: AgentShieldLedgerStalled
+        expr: increase(shield_audit_ledger_entries[15m]) == 0 and sum(rate(shield_requests_total[15m])) > 0
+        for: 15m
+        labels: { severity: critical }
+        annotations: { summary: "Requests are flowing but the audit ledger is not growing" }
+      - alert: AgentShieldScanLatencyHigh
+        expr: histogram_quantile(0.99, sum by (le) (rate(shield_scan_seconds_bucket[5m]))) > 0.25
+        for: 10m
+        labels: { severity: warning }
+        annotations: { summary: "p99 scan latency above 250ms" }
+      - alert: AgentShieldSandboxViolations
+        expr: sum(increase(shield_sandbox_runs_total{outcome=~"refused|failed"}[15m])) > 5
+        for: 0m
+        labels: { severity: warning }
+        annotations: { summary: "Repeated sandbox refusals - possible hostile code generation" }

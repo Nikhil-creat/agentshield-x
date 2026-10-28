@@ -1,0 +1,29 @@
+# Least-privilege RBAC: the API may create/delete/watch pods ONLY in the sandbox namespace. No exec, no secrets, no other kinds.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ .Values.sandbox.namespace }}
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata: {name: agentshield-api, namespace: {{ .Release.Namespace }}}
+automountServiceAccountToken: true   # kubectl needs the token; the pod spec mounts it only for the API container
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata: {name: agentshield-sandbox-runner, namespace: {{ .Values.sandbox.namespace }}}
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["create", "delete", "get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods/attach", "pods/log"]
+    verbs: ["create", "get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata: {name: agentshield-sandbox-runner, namespace: {{ .Values.sandbox.namespace }}}
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: Role, name: agentshield-sandbox-runner}
+subjects: [{kind: ServiceAccount, name: agentshield-api, namespace: {{ .Release.Namespace }}}]

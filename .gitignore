@@ -1,0 +1,38 @@
+# secrets - never commit
+.env
+.env.*
+!.env.example
+secrets/
+keys/
+*.pem
+!**/pubkeys/*.pem
+*.key
+approval_key*
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+# runtime data
+audit*.jsonl
+anchors*.jsonl
+pins.json
+*.sqlite
+# models are large and carry their own licences: publish via release assets / a model registry
+models/*
+!models/.gitkeep
+*.onnx
+# editors / OS
+.idea/
+.vscode/
+.DS_Store
+# generated site (built by CI / make site)
+_site/

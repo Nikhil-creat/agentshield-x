@@ -1,0 +1,8 @@
+{
+  "name": "AgentShield-X",
+  "image": "mcr.microsoft.com/devcontainers/python:3.12",
+  "features": { "ghcr.io/devcontainers/features/docker-in-docker:2": {} },
+  "postCreateCommand": "sudo apt-get update && sudo apt-get install -y --no-install-recommends tesseract-ocr && pip install -e '.[dev,api,docs]'",
+  "forwardPorts": [8080],
+  "customizations": { "vscode": { "extensions": ["ms-python.python", "charliermarsh.ruff", "redhat.vscode-yaml", "open-policy-agent.opa"] } }
+}

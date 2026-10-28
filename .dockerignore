@@ -1,0 +1,12 @@
+.git
+.github
+.env
+.env.*
+secrets/
+keys/
+tests/
+docs/
+dist/
+__pycache__/
+*.pyc
+models/*.onnx

@@ -1,0 +1,50 @@
+{{- if .Values.tetragon.enabled }}
+# Kernel-level enforcement for sandbox pods: violating syscalls are SIGKILLed *in the kernel* (Sigkill action),
+# before the syscall completes. Mirrors agentshield/ebpf_monitor.py DENIED_SYSCALLS; see deploy/tetragon for a
+# standalone copy (Docker-host deployments).
+apiVersion: cilium.io/v1alpha1
+kind: TracingPolicy
+metadata: {name: agentshield-sandbox-enforce}
+spec:
+  podSelector:
+    matchLabels: {agentshield/role: sandbox}
+  kprobes:
+    - call: sys_ptrace
+      syscall: true
+      selectors: [{matchActions: [{action: Sigkill}]}]
+    - call: sys_mount
+      syscall: true
+      selectors: [{matchActions: [{action: Sigkill}]}]
+    - call: sys_unshare
+      syscall: true
+      selectors: [{matchActions: [{action: Sigkill}]}]
+    - call: sys_setns
+      syscall: true
+      selectors: [{matchActions: [{action: Sigkill}]}]
+    - call: sys_bpf
+      syscall: true
+      selectors: [{matchActions: [{action: Sigkill}]}]
+    - call: sys_init_module
+      syscall: true
+      selectors: [{matchActions: [{action: Sigkill}]}]
+    - call: sys_finit_module
+      syscall: true
+      selectors: [{matchActions: [{action: Sigkill}]}]
+    - call: sys_kexec_load
+      syscall: true
+      selectors: [{matchActions: [{action: Sigkill}]}]
+    - call: sys_perf_event_open
+      syscall: true
+      selectors: [{matchActions: [{action: Sigkill}]}]
+    - call: sys_open_by_handle_at
+      syscall: true
+      selectors: [{matchActions: [{action: Sigkill}]}]
+    # any socket()/connect() from a sandbox is a violation (network is already air-gapped; this is defense in depth + alerting)
+    - call: sys_socket
+      syscall: true
+      args: [{index: 0, type: int}]
+      selectors: [{matchArgs: [{index: 0, operator: NotEqual, values: ["0"]}], matchActions: [{action: Sigkill}]}]
+    - call: sys_connect
+      syscall: true
+      selectors: [{matchActions: [{action: Sigkill}]}]
+{{- end }}

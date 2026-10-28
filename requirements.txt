@@ -1,0 +1,16 @@
+fastapi>=0.115,<1
+uvicorn[standard]>=0.30
+pydantic>=2.7,<3
+numpy>=1.26
+pillow>=10.3
+opencv-python-headless>=4.9
+onnxruntime>=1.18
+cryptography>=50.0.1   # >=50 provides ML-DSA-65 (FIPS 204) used for hybrid post-quantum checkpoint signatures
+pyyaml>=6.0.1
+tokenizers>=0.19
+asyncpg>=0.29
+redis>=5.0
+prometheus-client>=0.20
+opentelemetry-api>=1.25
+opentelemetry-sdk>=1.25
+opentelemetry-instrumentation-fastapi>=0.46b0
