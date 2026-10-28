@@ -34,7 +34,7 @@ vision = ["opencv-python-headless>=4.9", "onnxruntime>=1.18"]
 text-ml = ["onnxruntime>=1.18", "tokenizers>=0.19"]
 stores = ["asyncpg>=0.29", "redis>=5.0"]
 otel = ["opentelemetry-api>=1.25", "opentelemetry-sdk>=1.25", "opentelemetry-instrumentation-fastapi>=0.46b0"]
-docs = ["markdown>=3.5"]
+docs = ["markdown>=3.11.2"]
 dev = ["pytest>=8", "httpx>=0.27", "ruff>=0.6", "mypy>=1.11", "types-PyYAML"]
 all = ["agentshield-x[api,vision,text-ml,stores,otel,docs]"]
 
