@@ -22,8 +22,17 @@ test_self_transfer_denied if {
 	not authz.allow with input as object.union(base, {"tool": {"name": "t", "effect": "financial"}, "args": {"amount": 1, "from_account": "a", "to_account": "a"}})
 }
 
+# object.union merges recursively, so `attrs: {}` would keep base's clearance; build these inputs explicitly.
 test_exec_without_clearance_denied if {
-	not authz.allow with input as object.union(base, {"tool": {"name": "t", "effect": "exec"}, "principal": {"subject": "u1", "roles": [], "scopes": [], "attrs": {}}})
+	not authz.allow with input as {"principal": {"subject": "u1", "roles": [], "scopes": [], "attrs": {}}, "tool": {"name": "t", "effect": "exec"}, "args": {}, "context": {}}
+}
+
+test_exec_with_zero_clearance_denied if {
+	not authz.allow with input as {"principal": {"subject": "u1", "roles": [], "scopes": [], "attrs": {"clearance": 0}}, "tool": {"name": "t", "effect": "exec"}, "args": {}, "context": {}}
+}
+
+test_exec_with_clearance_allowed if {
+	authz.allow with input as object.union(base, {"tool": {"name": "t", "effect": "exec"}})
 }
 
 test_prod_offhours_delete_denied if {
