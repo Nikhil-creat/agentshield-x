@@ -148,6 +148,7 @@ SECRET_SIGNATURES: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("private_key", re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH |DSA |PGP )?PRIVATE KEY(?: BLOCK)?-----")),
     ("jwt", re.compile(r"\beyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b")),
     ("api_key_sk", re.compile(r"\bsk-[A-Za-z0-9_-]{20,}\b")),
+    ("groq_api_key", re.compile(r"\bgsk_[A-Za-z0-9]{20,}\b")),
     ("google_api_key", re.compile(r"\bAIza[0-9A-Za-z_-]{35}\b")),
     ("us_ssn", re.compile(r"\b\d{3}-\d{2}-\d{4}\b")),
 )

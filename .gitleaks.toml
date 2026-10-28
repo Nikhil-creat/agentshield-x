@@ -1,3 +1,4 @@
+# Test fixtures and detector regexes intentionally contain fake credentials (AWS's documented example key, etc.).
 title = "AgentShield-X gitleaks config"
 
 [extend]

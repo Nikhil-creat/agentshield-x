@@ -74,7 +74,7 @@ class Component:
 
 
 class AIBOM:
-    def __init__(self, system_name: str = "agentshield-x", system_version: str = "2.1.0") -> None:
+    def __init__(self, system_name: str = "agentshield-x", system_version: str = "2.2.0") -> None:
         self.system = (system_name, system_version)
         self._c: dict[tuple[str, str], Component] = {}
 

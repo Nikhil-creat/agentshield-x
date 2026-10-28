@@ -12,8 +12,8 @@ Use the `ID+username@users.noreply.github.com` address (GitHub → Settings → 
 
 ## 1. Unpack and check before the first commit
 ```bash
-sha256sum -c agentshield-x-2.1.0.zip.sha256        # integrity of the download (run next to the zip)
-unzip agentshield-x-2.1.0.zip && cd agentshield-x-2.1.0
+sha256sum -c agentshield-x-2.2.0.zip.sha256        # integrity of the download (run next to the zip)
+unzip agentshield-x-2.2.0.zip && cd agentshield-x-2.2.0
 python3 -m venv .venv && . .venv/bin/activate
 pip install -e ".[dev,api]"
 make test policy redteam                            # must be green before you publish
@@ -24,14 +24,14 @@ ls -a | grep -E '^\.env$|^keys$|^secrets$' || echo "no secrets present (good)"
 **Option A - GitHub CLI**
 ```bash
 gh auth login
-git init -b main && git add . && git commit -m "feat: AgentShield-X 2.1.0"
+git init -b main && git add . && git commit -m "feat: AgentShield-X 2.2.0"
 gh repo create Nikhil-creat/agentshield-x --public --source . --remote origin --push \
   --description "Zero-trust security and governance fabric for LLM, RAG and multi-agent systems"
 ```
 **Option B - website**
 1. github.com → **New repository** → name `agentshield-x`, *no* README/.gitignore/licence (the zip already has them) → Create.
 2. ```bash
-   git init -b main && git add . && git commit -m "feat: AgentShield-X 2.1.0"
+   git init -b main && git add . && git commit -m "feat: AgentShield-X 2.2.0"
    git remote add origin https://github.com/Nikhil-creat/agentshield-x.git
    git push -u origin main
    ```
@@ -56,7 +56,7 @@ Open the *Actions* tab, read the failing step's log, fix, push. The `lint` job i
 
 ## 4. Release
 ```bash
-git tag -a v2.1.0 -m "AgentShield-X 2.1.0" && git push origin v2.1.0
+git tag -a v2.2.0 -m "AgentShield-X 2.2.0" && git push origin v2.2.0
 ```
 The `Release` workflow tests, builds the wheel/sdist and SBOM, pushes a signed image to `ghcr.io/nikhil-creat/agentshield-x`,
 attaches build provenance and publishes a GitHub release. Make the package public under *Packages* if you want others to pull it.

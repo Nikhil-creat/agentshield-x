@@ -27,7 +27,7 @@ Prerequisites: Cilium CNI (for the air-gap `CiliumNetworkPolicy`), Tetragon (for
 helm lint charts/agentshield-x
 helm template agentshield charts/agentshield-x | less      # read it before applying
 helm install agentshield charts/agentshield-x -n agentshield --create-namespace \
-  --set image.repository=ghcr.io/nikhil-creat/agentshield-x --set image.tag=v2.1.0
+  --set image.repository=ghcr.io/nikhil-creat/agentshield-x --set image.tag=v2.2.0
 ```
 The chart runs sandboxes as short-lived pods (`KubernetesSandboxManager`) in a dedicated namespace with RBAC limited to
 create/delete/get on pods there.

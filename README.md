@@ -40,3 +40,7 @@ Docs: [Architecture](ARCHITECTURE.md) · [Threat model](docs/THREAT_MODEL.md) ·
 - Detection of *novel paraphrased* prompt injection by the rule/cue layer is weak (2/10 fresh paraphrases in the bundled benchmark; 1/27 benign false positives). Use the learned-classifier hook and least-privilege tools.
 - ZK identity is pseudonymous authentication (Schnorr proof of key possession), not anonymous credentials.
 - The AI-BOM compliance map is evidence, not a certification.
+
+## AI assistant
+
+Ask the docs with your own free Groq or Gemini key; provider and model are auto-detected. See `docs/AI_ASSISTANT.md` or run `agentshield chat`.

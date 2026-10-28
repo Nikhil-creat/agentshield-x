@@ -1350,10 +1350,8 @@ class TestMiddleware(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("a@b.io", json.loads(body)["got"]["rag_chunks"][1])
 
     async def test_deeply_nested_json_does_not_crash(self):
-        deep = "x"
-        for _ in range(3000):
-            deep = [deep]
-        st, *_ = await asgi(self.mw, "POST", "/chat", raw=b"["*3000+b"1"+b"]"*3000, headers={"authorization": f"Bearer {self.tok}", "content-type": "application/json"})
+        deep = ("[" * 3000 + '"x"' + "]" * 3000).encode()  # built as text: json.dumps itself hits the recursion limit on 3.11
+        st, *_ = await asgi(self.mw, "POST", "/chat", raw=deep, headers={"authorization": f"Bearer {self.tok}", "content-type": "application/json"})
         self.assertIn(st, (400, 413))
 
     async def test_body_limits_and_content_type(self):

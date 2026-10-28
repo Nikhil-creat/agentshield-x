@@ -39,3 +39,11 @@ privilege, secret management or network segmentation. Not a guarantee against mo
 See the verification table in `README.md`. In short: logic is unit-tested; real container isolation, Postgres/Redis,
 Kubernetes/Cilium/Tetragon, OPA and the FastAPI wiring were not exercised in the build environment and are covered by CI jobs
 or require your cluster.
+
+
+## Addendum (2.2.0): AI assistant
+- **Asset**: the user's provider API key. **Boundary**: browser tab to provider. The site has no server, so it never receives the key.
+- **Mitigations**: fixed HTTPS hosts, header-only key, no redirects, CSP `connect-src` limited to two hosts on one page, text-only rendering,
+  secret detection on input and output, rate and size limits.
+- **Residual risk**: XSS on the site origin would expose a key held in the tab (mitigated by CSP without inline script and by not
+  using HTML rendering); the browser-side injection filter is pattern-based; provider-side data handling is outside our control.

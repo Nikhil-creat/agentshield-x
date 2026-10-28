@@ -32,8 +32,12 @@ from agentshield.shield_types import TrustLevel, Verdict  # noqa: E402
 from agentshield.threat_hunter import RagChunk  # noqa: E402
 from agentshield.zk_identity import Principal  # noqa: E402
 
-CSP = ("default-src 'none'; style-src 'self'; script-src 'self'; img-src 'self' data:; connect-src 'none'; "
-       "base-uri 'none'; form-action 'none'")
+_CSP_TAIL = "base-uri 'none'; form-action 'none'"
+CSP = f"default-src 'none'; style-src 'self'; script-src 'self'; img-src 'self' data:; connect-src 'none'; {_CSP_TAIL}"
+# Only the assistant page may talk to the two LLM providers (plus its own docs index). Nothing else is allowed.
+LLM_HOSTS = "https://api.groq.com https://generativelanguage.googleapis.com"
+CSP_ASSISTANT = f"default-src 'none'; style-src 'self'; script-src 'self'; img-src 'self' data:; connect-src 'self' {LLM_HOSTS}; {_CSP_TAIL}"
+SITE_URL = "https://nikhil-creat.github.io/agentshield-x/"
 
 DOCS = [  # (source, slug, title, blurb)
     ("README.md", "readme", "Overview", "What it is and how to start"),
@@ -41,6 +45,7 @@ DOCS = [  # (source, slug, title, blurb)
     ("docs/THREAT_MODEL.md", "threat-model", "Threat model", "Assets, boundaries, adversaries and residual risk"),
     ("docs/COVERAGE.md", "coverage", "OWASP and ATLAS coverage", "What is covered, partly covered, and not"),
     ("docs/DEPLOYMENT.md", "deployment", "Deployment", "Compose, Kubernetes, policies, anchoring"),
+    ("docs/AI_ASSISTANT.md", "ai-assistant", "AI assistant", "Groq and Gemini, model auto-detection, limits"),
     ("docs/API.md", "api", "HTTP API", "Routes, roles and verdicts"),
     ("docs/RUNBOOK.md", "runbook", "Runbook", "Incident response and key rotation"),
     ("docs/GITHUB_GUIDE.md", "github-guide", "Publish to GitHub", "From zip to a protected repository"),
@@ -147,7 +152,8 @@ def schematic(tall: bool) -> str:
 # ------------------------------------------------------------------------------------- page chrome
 def header(prefix: str, current: str = "") -> str:
     nav = [("Pipeline", f"{prefix}index.html#pipeline", ""), ("Evidence", f"{prefix}index.html#evidence", ""),
-           ("Limits", f"{prefix}index.html#limits", ""), ("Docs", f"{prefix}docs/index.html", "docs")]
+           ("Limits", f"{prefix}index.html#limits", ""), ("Assistant", f"{prefix}assistant.html", "assistant"),
+           ("About", f"{prefix}about.html", "about"), ("Docs", f"{prefix}docs/index.html", "docs")]
     items = "".join(f'<a href="{h}"{" aria-current=\"page\"" if k and k == current else ""}>{t}</a>' for t, h, k in nav)
     return (f'<a class="skip" href="#main">Skip to content</a><header class="site"><div class="wrap">'
             f'<a class="brand" href="{prefix}index.html"><img src="{prefix}logo.svg" alt="" width="28" height="28"><span>AgentShield-X</span></a>'
@@ -159,18 +165,23 @@ def footer(prefix: str) -> str:
             f'<div><h2>AgentShield-X {__version__}</h2><p>Zero-trust security and governance for LLM, RAG and agent systems. Deny by default.</p></div>'
             f'<div><h2>Project</h2><ul><li><a href="{REPO}">Source on GitHub</a></li><li><a href="{REPO}/releases">Releases</a></li><li><a href="{prefix}docs/changelog.html">Changelog</a></li></ul></div>'
             f'<div><h2>Docs</h2><ul><li><a href="{prefix}docs/architecture.html">Architecture</a></li><li><a href="{prefix}docs/threat-model.html">Threat model</a></li><li><a href="{prefix}docs/deployment.html">Deployment</a></li></ul></div>'
-            f'<div><h2>Trust</h2><ul><li><a href="{prefix}docs/security.html">Security policy</a></li><li><a href="{REPO}/blob/main/LICENSE">Apache-2.0 licence</a></li><li><a href="{prefix}docs/coverage.html">Coverage and limits</a></li></ul></div></div>'
+            f'<div><h2>Trust</h2><ul><li><a href="{prefix}docs/security.html">Security policy</a></li><li><a href="{REPO}/blob/main/LICENSE">Apache-2.0 licence</a></li><li><a href="{prefix}docs/coverage.html">Coverage and limits</a></li><li><a href="{prefix}assistant.html">AI assistant</a></li><li><a href="{prefix}about.html">About the builder</a></li></ul></div></div>'
             f'<p class="fine">Built {date.today().isoformat()}. The examples on this site were produced by running the engine when the site was built; they are captured results, not a live service. '
             f'AgentShield-X reduces risk and produces audit evidence; it is not a compliance certification and does not guarantee that a model behaves safely.</p></div></footer>')
 
 
-def page(title: str, body: str, prefix: str, current: str = "", desc: str = "") -> str:
+def page(title: str, body: str, prefix: str, current: str = "", desc: str = "", csp: str = CSP, scripts: tuple[str, ...] = ("site.js",),
+         path: str = "") -> str:
+    d = html.escape(desc or "Zero-trust security and governance for LLM, RAG and agent systems.")
+    og = (f'<meta property="og:type" content="website"><meta property="og:title" content="{html.escape(title)}"><meta property="og:description" content="{d}">'
+          f'<meta property="og:url" content="{SITE_URL}{path}"><meta name="twitter:card" content="summary"><link rel="canonical" href="{SITE_URL}{path}">')
+    tags = "".join(f'<script src="{prefix}{x}"></script>' for x in scripts)
     return (f'<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
-            f'<meta http-equiv="Content-Security-Policy" content="{CSP}"><meta name="referrer" content="no-referrer">'
-            f'<meta name="description" content="{html.escape(desc or "Zero-trust security and governance for LLM, RAG and agent systems.")}">'
+            f'<meta http-equiv="Content-Security-Policy" content="{csp}"><meta name="referrer" content="no-referrer">'
+            f'<meta name="description" content="{d}">{og}'
             f'<meta name="theme-color" content="#0B2A49"><title>{html.escape(title)}</title>'
             f'<link rel="icon" href="{prefix}logo.svg" type="image/svg+xml"><link rel="stylesheet" href="{prefix}style.css"></head>'
-            f'<body>{header(prefix, current)}{body}{footer(prefix)}<script src="{prefix}site.js"></script></body></html>')
+            f'<body>{header(prefix, current)}{body}{footer(prefix)}{tags}</body></html>')
 
 
 # ------------------------------------------------------------------------------------- pages
@@ -264,15 +275,85 @@ def doc_pages() -> None:
     (OUT / "docs" / "index.html").write_text(page("Documentation - AgentShield-X", body, "../", "docs"), encoding="utf-8")
 
 
+def credentials() -> dict:
+    return json.loads((ROOT / "web" / "credentials.json").read_text(encoding="utf-8"))
+
+
+def about_page() -> str:
+    c = credentials()
+    e = html.escape
+    links = "".join(f'<a class="btn ghost" href="{e(l["url"])}" rel="noopener">{e(l["label"])}</a> ' for l in c["links"])
+    edu = "".join(f'<li><b>{e(x["what"])}</b><span>{e(x["where"])}, {e(x["when"])}</span></li>' for x in c["education"])
+    skills = "".join(f"<li>{e(x)}</li>" for x in c["skills"])
+    log = c["credential_log"]
+    groups = "".join(
+        f'<div class="grp"><h3>{e(g["name"])}</h3>' + ("<ul>" + "".join(
+            f'<li>{e(i["title"])} <span>{e(i.get("issuer", ""))}{", " + e(i["date"]) if i.get("date") else ""}</span>'
+            + (f' <a href="{e(i["url"])}" rel="noopener">verify</a>' if i.get("url") else "") + "</li>" for i in g["items"]) + "</ul>"
+            if g["items"] else "<p class=\"muted\">Titles to be added.</p>") + "</div>" for g in log["groups"])
+    issuers = "".join(f"<li>{e(x)}</li>" for x in log["issuers"])
+    body = (f'<main id="main"><section class="bp"><div class="wrap pad-s"><h1>{e(c["name"])}</h1><p class="lede">{e(c["headline"])}</p><p>{links}</p></div></section>'
+            f'<div class="wrap pad"><div class="about-grid"><section><h2>Education</h2><ul class="plain">{edu}</ul>'
+            f'<h2>Skills</h2><ul class="tags">{skills}</ul></section>'
+            f'<section><h2>Credential log ({log["listed"]} listed)</h2><p>{e(log["note"])}</p><h3>Issuers</h3><ul class="tags">{issuers}</ul></section></div>'
+            f'<div class="grps">{groups}</div>'
+            f'<h2>Internships and virtual experience programs</h2><p>{e(c["internships"]["note"])}</p>'
+            f'<p class="note">A listed credential is a claim by the builder. Where a verification link is provided, use it.</p></div></main>')
+    return page("About the builder - AgentShield-X", body, "", "about", "Who built AgentShield-X: education, skills and credential log.", path="about.html")
+
+
+def assistant_page() -> str:
+    body = (f'<main id="main"><section class="bp"><div class="wrap pad-s"><h1>AI assistant</h1>'
+            f'<p class="lede">Ask questions about AgentShield-X. Bring your own free Groq or Google Gemini key: the page detects which one it is and picks the best model your key can use.</p></div></section>'
+            f'<div class="wrap pad" id="as-chat"><div class="as-panel">'
+            f'<form id="as-keyform" onsubmit="return false"><label for="as-key">API key</label>'
+            f'<div class="as-row"><input id="as-key" type="password" autocomplete="off" spellcheck="false" placeholder="gsk_… (Groq) or AIza… (Gemini)">'
+            f'<button type="button" class="btn" id="as-connect">Connect</button><button type="button" class="btn ghost-d" id="as-forget">Forget key</button></div>'
+            f'<label class="chk"><input type="checkbox" id="as-remember"> Keep the key for this browser tab only (sessionStorage)</label></form>'
+            f'<p id="as-status" role="status" aria-live="polite" class="ok">Paste a key to begin. Free keys: console.groq.com or aistudio.google.com.</p>'
+            f'<div id="as-log" class="as-log" aria-live="polite"></div>'
+            f'<form id="as-form"><label for="as-q">Your question</label><div class="as-row"><textarea id="as-q" rows="2" maxlength="2000" disabled></textarea>'
+            f'<button class="btn" id="as-send" disabled>Ask</button></div></form></div>'
+            f'<div class="as-notes"><h2>How this is kept safe</h2><ul>'
+            f'<li><b>Your key stays with you.</b> It lives in this tab\'s memory (or sessionStorage if you tick the box) and is sent only to the provider it belongs to, in a request header. This site has no server and cannot see it.</li>'
+            f'<li><b>The page may contact only two hosts.</b> A content security policy limits requests to api.groq.com, generativelanguage.googleapis.com and this site.</li>'
+            f'<li><b>Answers are grounded in these docs.</b> Excerpts are passed as reference data with an instruction not to follow them; excerpts that look like injected instructions are dropped.</li>'
+            f'<li><b>Replies are shown as plain text</b>, never as HTML, and credential-shaped strings are redacted.</li>'
+            f'<li><b>Limits:</b> {2000} characters per question, one question every 3 seconds, 30 per session, a 6-turn memory window.</li></ul>'
+            f'<h2>What it cannot do</h2><ul><li>This browser guard is lighter than the full Python pipeline. For the complete input, retrieval and output defences use <code>agentshield chat</code> or the API route.</li>'
+            f'<li>Model choice is a ranking heuristic over the list your key returns, not a benchmark. Free-tier quotas and model names change; if a model is rate limited the next best is tried.</li>'
+            f'<li>It answers only from the project docs. It may still be wrong; check the linked docs.</li></ul></div></div></main>')
+    return page("AI assistant - AgentShield-X", body, "", "assistant", "Ask the AgentShield-X docs with your own free Groq or Gemini key. Model auto-detected.",
+                csp=CSP_ASSISTANT, scripts=("site.js", "assistant.js"), path="assistant.html")
+
+
+def assistant_index() -> dict:
+    from agentshield.assistant import DocIndex
+    ix = DocIndex.from_paths([ROOT / src for src, *_ in DOCS if (ROOT / src).is_file()])
+    return {"chunks": [{"id": c.id, "text": c.text, "source": c.source} for c in ix.chunks]}
+
+
+def seo_files() -> None:
+    urls = ["", "assistant.html", "about.html", "docs/index.html"] + [f"docs/{slug}.html" for _, slug, *_ in DOCS]
+    today = date.today().isoformat()
+    (OUT / "sitemap.xml").write_text('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+                                     + "".join(f"<url><loc>{SITE_URL}{u}</loc><lastmod>{today}</lastmod></url>\n" for u in urls) + "</urlset>\n", encoding="utf-8")
+    (OUT / "robots.txt").write_text(f"User-agent: *\nAllow: /\nSitemap: {SITE_URL}sitemap.xml\n", encoding="utf-8")
+
+
 def main() -> int:
     if OUT.exists():
         shutil.rmtree(OUT)
     (OUT / "docs").mkdir(parents=True)
-    for f in ("style.css", "site.js", "logo.svg"):
+    for f in ("style.css", "site.js", "assistant.js", "logo.svg"):
         shutil.copy2(ROOT / "web" / f, OUT / f)
     (OUT / ".nojekyll").write_text("")
     (OUT / "index.html").write_text(index(capture_examples()), encoding="utf-8")
     doc_pages()
+    (OUT / "assistant.html").write_text(assistant_page(), encoding="utf-8")
+    (OUT / "about.html").write_text(about_page(), encoding="utf-8")
+    (OUT / "assistant-index.json").write_text(json.dumps(assistant_index()), encoding="utf-8")
+    seo_files()
     (OUT / "404.html").write_text(page("Not found - AgentShield-X", '<main id="main"><div class="wrap pad"><h1>That page does not exist.</h1><p><a href="index.html">Back to the overview</a></p></div></main>', "", ""), encoding="utf-8")
     print(f"built {len(list(OUT.rglob('*.html')))} pages into {OUT}")
     return 0

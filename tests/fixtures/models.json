@@ -1,0 +1,32 @@
+{
+  "groq": [
+    {"id": "llama-3.3-70b-versatile", "active": true},
+    {"id": "llama-3.1-8b-instant", "active": true},
+    {"id": "openai/gpt-oss-120b", "active": true},
+    {"id": "openai/gpt-oss-20b", "active": true},
+    {"id": "qwen/qwen3-32b", "active": true},
+    {"id": "moonshotai/kimi-k2-instruct", "active": true},
+    {"id": "meta-llama/llama-4-scout-17b-16e-instruct", "active": true},
+    {"id": "deepseek-r1-distill-llama-70b", "active": true},
+    {"id": "whisper-large-v3", "active": true},
+    {"id": "whisper-large-v3-turbo", "active": true},
+    {"id": "playai-tts", "active": true},
+    {"id": "meta-llama/llama-guard-4-12b", "active": true},
+    {"id": "meta-llama/llama-prompt-guard-2-86m", "active": true},
+    {"id": "retired-llama-70b-versatile", "active": false}
+  ],
+  "gemini": [
+    {"name": "models/gemini-2.5-flash", "supportedGenerationMethods": ["generateContent", "countTokens"]},
+    {"name": "models/gemini-2.5-pro", "supportedGenerationMethods": ["generateContent"]},
+    {"name": "models/gemini-2.5-flash-lite", "supportedGenerationMethods": ["generateContent"]},
+    {"name": "models/gemini-2.0-flash", "supportedGenerationMethods": ["generateContent"]},
+    {"name": "models/gemini-2.0-flash-001", "supportedGenerationMethods": ["generateContent"]},
+    {"name": "models/gemini-2.5-flash-preview-05-20", "supportedGenerationMethods": ["generateContent"]},
+    {"name": "models/gemini-2.0-flash-exp", "supportedGenerationMethods": ["generateContent"]},
+    {"name": "models/gemini-2.5-flash-image", "supportedGenerationMethods": ["generateContent"]},
+    {"name": "models/gemini-live-2.5-flash", "supportedGenerationMethods": ["bidiGenerateContent"]},
+    {"name": "models/text-embedding-004", "supportedGenerationMethods": ["embedContent"]},
+    {"name": "models/imagen-3.0-generate-002", "supportedGenerationMethods": ["predict"]},
+    {"name": "models/gemma-3-27b-it", "supportedGenerationMethods": ["generateContent"]}
+  ]
+}

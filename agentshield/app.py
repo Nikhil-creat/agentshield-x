@@ -12,6 +12,7 @@ from __future__ import annotations
 import base64
 import binascii
 import asyncio
+from pathlib import Path
 import contextlib
 import os
 from typing import Any
@@ -67,6 +68,11 @@ class RagChunkIn(BaseModel):
 class RagIn(BaseModel):
     query: str = Field(default="", max_length=2000)
     chunks: list[RagChunkIn] = Field(max_length=256)
+
+
+class AssistantIn(BaseModel):
+    question: str = Field(min_length=1, max_length=2000)
+    session_id: str = Field(default="", max_length=64)
 
 
 class ImageIn(BaseModel):
@@ -186,6 +192,26 @@ def create_app(settings: ShieldSettings | None = None, pipeline: ShieldPipeline 
         out = pipe.check_rag(chunks, body.query, actor=p.subject)
         return {"chunks": [{"id": v.chunk_id, "action": v.action, "score": round(v.score, 4), "text": v.text,
                             "findings": [f.as_dict() for f in v.findings]} for v in out]}
+
+    # Optional guarded docs assistant: enabled only when GROQ_API_KEY / GEMINI_API_KEY is set on the server. Unexecuted in CI (needs fastapi).
+    _bot: dict[str, Any] = {}
+
+    def _assistant():
+        if "b" not in _bot:
+            from .assistant import DocIndex, GuardedAssistant
+            from .llm import LlmClient, LlmError
+            try:
+                client = LlmClient.from_env()
+            except LlmError:
+                raise HTTPException(503, "assistant not configured") from None
+            _bot["b"] = GuardedAssistant(pipe, client, DocIndex.from_project(Path(__file__).resolve().parent.parent))
+        return _bot["b"]
+
+    @app.post("/v1/assistant/chat")
+    async def assistant_chat(body: AssistantIn, p: Principal = Depends(principal)) -> dict[str, Any]:
+        bot = _assistant()
+        ans = await asyncio.to_thread(bot.ask, body.question, session_id=f"{p.subject}:{body.session_id or 'default'}")
+        return ans.as_dict()
 
     @app.post("/v1/scan/image")
     async def scan_image(body: ImageIn, p: Principal = Depends(principal)) -> dict[str, Any]:

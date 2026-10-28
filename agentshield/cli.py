@@ -8,6 +8,7 @@
     agentshield aibom > aibom.cdx.json
     agentshield keygen --out ./keys            # writes 0600 key files; never prints secrets
     agentshield serve [--host 127.0.0.1 --port 8080]
+    agentshield chat [--provider groq|gemini]            # guarded docs assistant; key from GROQ_API_KEY / GEMINI_API_KEY
     agentshield mcp-proxy --subject alice --scope tools.search -- npx some-mcp-server
 
 Exit status: 0 = ok/allowed, 1 = blocked / verification failed / red-team below threshold, 2 = usage or input error.
@@ -152,6 +153,39 @@ def cmd_serve(a: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_chat(a: argparse.Namespace) -> int:
+    from .assistant import DocIndex, GuardedAssistant
+    from .llm import LlmClient, LlmError, autodetect_summary
+    try:
+        client = LlmClient.from_env(os.environ, prefer=a.provider)
+        info = autodetect_summary(client)
+    except LlmError as e:
+        print(f"error: {e}\nset GROQ_API_KEY (free: console.groq.com) or GEMINI_API_KEY (free: aistudio.google.com)", file=sys.stderr)
+        return 2
+    root = Path(a.docs).resolve() if a.docs else Path(__file__).resolve().parent.parent
+    index = DocIndex.from_project(root)
+    if not index.chunks:
+        print(f"error: no docs found under {root} (use --docs DIR)", file=sys.stderr)
+        return 2
+    bot = GuardedAssistant(_pipeline(), client, index)
+    print(f"AgentShield-X assistant | {info['provider']} | auto-selected model: {info['selected']} ({info['available']} chat models found)")
+    print("type a question, /reset to clear, /quit to exit")
+    while True:
+        try:
+            q = input("> ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            return 0
+        if q in ("/quit", "/exit"):
+            return 0
+        if q == "/reset":
+            bot.reset("cli")
+            continue
+        if q:
+            r = bot.ask(q, session_id="cli")
+            print(r.text + (f"\n  [{r.model}; sources: {', '.join(r.sources)}]" if r.status == "ok" else ""))
+
+
 def cmd_mcp_proxy(a: argparse.Namespace) -> int:
     from .config import ShieldSettings
     from .mcp_guard import McpGuard, PinStore, run_stdio_proxy
@@ -223,6 +257,11 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--host", default="127.0.0.1")
     s.add_argument("--port", type=int, default=8080)
     s.set_defaults(fn=cmd_serve)
+
+    s = sub.add_parser("chat", help="guarded docs assistant using your own free Groq/Gemini key (model auto-detected)")
+    s.add_argument("--provider", choices=["groq", "gemini"])
+    s.add_argument("--docs", help="project root containing README.md and docs/")
+    s.set_defaults(fn=cmd_chat)
 
     s = sub.add_parser("mcp-proxy", help="stdio policy proxy in front of an MCP server")
     s.add_argument("--subject", default="mcp-client")

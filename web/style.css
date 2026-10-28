@@ -132,3 +132,25 @@ article.md blockquote{margin:1em 0;border-left:4px solid var(--heal);padding:2px
 .bp a.btn.ghost{color:var(--bp-line);border-color:var(--bp-mute)}
 .bp a.btn.ghost:hover{color:#fff;border-color:#fff}
 pre.code{padding-top:44px}
+
+/* assistant + about */
+.pad-s{padding-top:36px;padding-bottom:36px}
+.as-panel{border:1px solid var(--rule);background:#fff;border-radius:8px;padding:20px;max-width:860px}
+.as-panel label{display:block;font-weight:700;margin:0 0 6px}
+.as-panel .chk{font-weight:400;margin:8px 0 0}
+.as-row{display:flex;gap:10px;align-items:stretch;flex-wrap:wrap}
+.as-row input[type=password],.as-row textarea{flex:1 1 260px;min-width:0;font:1rem var(--mono);padding:10px;border:1px solid var(--ink-2);border-radius:6px;background:var(--paper)}
+.as-row textarea{font-family:inherit;resize:vertical}
+.btn.ghost-d{background:transparent;color:var(--ink);border:1px solid var(--ink-2)}
+#as-status{margin:12px 0;font-size:.95rem} #as-status.bad{color:#9B1C1C;font-weight:700} #as-status.ok{color:var(--ink-2)}
+.as-log{min-height:80px;max-height:420px;overflow:auto;display:flex;flex-direction:column;gap:10px;margin:8px 0 16px}
+.msg{padding:10px 12px;border-radius:6px;max-width:92%} .msg p{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.msg small{display:block;margin-top:6px;color:var(--ink-2)}
+.msg.user{align-self:flex-end;background:var(--bp);color:#fff} .msg.bot{background:var(--paper-2);border-left:4px solid var(--heal)}
+.msg.err{background:#FBECEC;border-left:4px solid #9B1C1C}
+.as-notes{max-width:860px;margin-top:32px} .as-notes li{margin:8px 0}
+.about-grid{display:grid;grid-template-columns:1fr 1fr;gap:40px} @media (max-width:760px){.about-grid{grid-template-columns:1fr}}
+.plain{list-style:none;padding:0} .plain li{display:flex;flex-direction:column;margin:8px 0}
+.tags{list-style:none;padding:0;display:flex;flex-wrap:wrap;gap:8px} .tags li{border:1px solid var(--rule);background:var(--paper-2);padding:4px 10px;border-radius:999px;font-size:.92rem}
+.grps{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px;margin:24px 0}
+.grp{border:1px solid var(--rule);padding:14px;border-radius:6px} .grp h3{margin:0 0 6px;font-size:1rem} .muted{color:var(--ink-2);margin:0}
