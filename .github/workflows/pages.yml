@@ -20,7 +20,7 @@ jobs:
       - name: Build site (captures real engine results; fails if the ledger does not verify)
         run: python scripts/build_site.py
       - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with: { path: _site }
   deploy:
     needs: build
