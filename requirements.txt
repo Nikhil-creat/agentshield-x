@@ -7,7 +7,7 @@ opencv-python-headless>=4.9
 onnxruntime>=1.18
 cryptography>=50.0.1   # >=50 provides ML-DSA-65 (FIPS 204) used for hybrid post-quantum checkpoint signatures
 pyyaml>=6.0.1
-tokenizers>=0.19
+tokenizers>=0.23.3
 asyncpg>=0.29
 redis>=5.0
 prometheus-client>=0.20

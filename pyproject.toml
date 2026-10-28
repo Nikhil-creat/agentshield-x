@@ -31,7 +31,7 @@ dependencies = [
 [project.optional-dependencies]
 api = ["fastapi>=0.115,<1", "uvicorn[standard]>=0.30", "pydantic>=2.7,<3"]
 vision = ["opencv-python-headless>=4.9", "onnxruntime>=1.18"]
-text-ml = ["onnxruntime>=1.18", "tokenizers>=0.19"]
+text-ml = ["onnxruntime>=1.18", "tokenizers>=0.23.3"]
 stores = ["asyncpg>=0.29", "redis>=5.0"]
 otel = ["opentelemetry-api>=1.25", "opentelemetry-sdk>=1.25", "opentelemetry-instrumentation-fastapi>=0.46b0"]
 docs = ["markdown>=3.5"]
