@@ -1,0 +1,17 @@
+title = "AgentShield-X gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "fake credentials used as test fixtures"
+paths = [
+  '''^tests/''',
+  '''^evals/''',
+  '''^scripts/build_(site|release)\.py$''',
+  '''^agentshield/signatures\.py$''',
+]
+regexes = [
+  '''AKIAIOSFODNN7EXAMPLE''',
+  '''AKIAABCDEFGHIJKLMNOP''',
+]
